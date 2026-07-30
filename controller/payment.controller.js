@@ -116,3 +116,12 @@ exports.updatePaymentStatus = asyncHandler(async (req, res) => {
 
     return res.success("Payment status updated successfully", booking);
 });
+
+// Admin: Get all payment records
+exports.getAllPayments = asyncHandler(async (req, res) => {
+    const payments = await Payment.find({})
+        .populate("userId", "firstName lastName email phone")
+        .sort({ createdAt: -1 });
+
+    return res.success("All payments fetched successfully", payments);
+});

@@ -5,7 +5,7 @@ function registrationSuccessTemplate(userName = "User") {
     <head>
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-      <title>Welcome to Himalaya Carpets</title>
+      <title>Welcome to Sands Of Kashi</title>
       <!-- Font Awesome for icons -->
       <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css" 
         xintegrity="sha512-4C6F0L9MdkruYK9lrI/dEPtl+H+3GkOfJtQgHSiP1cqfBCZDaXYHNPaAbeJaotZrSOcLZB7K9Yf7rQXGU6VTlA==" 
@@ -141,7 +141,7 @@ function registrationSuccessTemplate(userName = "User") {
         <div class="container">
           <!-- Header -->
           <div class="header">
-            <h1>Himalaya Carpets</h1>
+            <h1>Sands Of Kashi</h1>
             <p>Indian Craftsmanship — Global Reach</p>
           </div>
           <!-- Content -->
@@ -149,7 +149,7 @@ function registrationSuccessTemplate(userName = "User") {
             <h2>Welcome, ${userName}!</h2>
             <div class="welcome-box">
               Your registration was successful.<br/>
-              Thank you for joining the Himalaya Carpets family!
+              Thank you for joining the Sands Of Kashi family!
             </div>
             <p>You can now explore our latest collections, track your orders, and enjoy exclusive benefits tailored for our clients.</p>
           </div>
@@ -157,13 +157,13 @@ function registrationSuccessTemplate(userName = "User") {
           <div class="footer">
             <div class="contact-info">
               <i class="fa-solid fa-envelope"></i>
-              <a href="mailto:carpetshimalaya@gmail.com">carpetshimalaya@gmail.com</a>
+              <a href="mailto:info@sandsofkashi.com">info@sandsofkashi.com</a>
             </div>
             <div class="contact-info">
               <i class="fa-solid fa-phone"></i>
               +919918022212
             </div>
-            <p>© ${new Date().getFullYear()} Himalaya Carpets. All rights reserved.</p>
+            <p>© ${new Date().getFullYear()} Sands Of Kashi. All rights reserved.</p>
           </div>
         </div>
       </div>

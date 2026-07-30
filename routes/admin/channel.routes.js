@@ -6,7 +6,7 @@ const {
  getChannels,
  updateChannel,
  deleteChannel
-} = require("../controllers/channelController");
+} = require("../controllers/admin/channel.controller");
 
 channalrouter.post("/",createChannel);
 

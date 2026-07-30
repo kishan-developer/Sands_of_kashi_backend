@@ -3,10 +3,11 @@ const express = require("express");
 // routes
 const authRoutes = require("../routes/auth.routes");
 const adminRoutes = require("../routes/admin/index.routes");
-const managerRoutes = require("../routes/manager/index.routes")
-const userRoutes = require("./user/index.routes");
+const hotelRoutes = require("../routes/hotel/index.routes")
+const guestRoutes = require("./guest/index.routes");
 const paymentRoutes = require("./payment.routes");
 const bookingRoutes = require("./booking.routes");
+const restaurantRoutes = require("./restaurant.routes");
 
 // models
 const Room = require("../model/Room.model");
@@ -16,21 +17,19 @@ const Newsletter = require("../model/Newsletter.model");
 const imageUploader = require("../utils/imageUploader.utils");
 const mailSender = require("../utils/mailSender.utils");
 
-// email teamples
-const bookVideoCallTemplate = require("../email/template/bookVideoCallTemplate");
-const bookVideoCallAdminTemplate = require("../email/template/bookVideoCallAdminTemplate");
+// email templates
 const contactEmailTemplate = require("../email/template/contactEmailTemplate");
-const adminCustomRugNotificationTemplate = require("../email/template/adminCustomRugNotificationTemplate");
 
 const router = express.Router();
 
 // route define
 router.use("/auth", authRoutes);
 router.use("/admin", adminRoutes);
-router.use("/manager", managerRoutes)
-router.use("/user", userRoutes);
+router.use("/hotel", hotelRoutes)
+router.use("/guest", guestRoutes);
 router.use("/payment", paymentRoutes);
 router.use("/bookings", bookingRoutes);
+router.use("/restaurant", restaurantRoutes);
 
 const rooms = [
   {
@@ -158,19 +157,30 @@ router.post("/bookVideoCall", async (req, res) => {
     }
 
     try {
-        const usertemplate = bookVideoCallTemplate(
-            body?.fullName,
-            body?.date,
-            body?.time
-        );
-        const admintemplate = bookVideoCallAdminTemplate(
-            body?.fullName,
-            body?.email,
-            body?.phone,
-            body?.date,
-            body?.time,
-            "None"
-        );
+        const usertemplate = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd;">
+                <h2 style="color: #333;">Video Call Booking Confirmed</h2>
+                <p>Hi ${body?.fullName || 'User'},</p>
+                <p>Your video call has been scheduled for:</p>
+                <p><strong>Date:</strong> ${body?.date || 'N/A'}</p>
+                <p><strong>Time:</strong> ${body?.time || 'N/A'}</p>
+                <p>We look forward to speaking with you!</p>
+                <p>Regards,<br/>Sands Of Kashi Team</p>
+            </div>
+        `;
+        
+        const admintemplate = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd;">
+                <h2 style="color: #333;">New Video Call Booking</h2>
+                <p>A new video call has been booked:</p>
+                <p><strong>Name:</strong> ${body?.fullName || 'N/A'}</p>
+                <p><strong>Email:</strong> ${body?.email || 'N/A'}</p>
+                <p><strong>Phone:</strong> ${body?.phone || 'N/A'}</p>
+                <p><strong>Date:</strong> ${body?.date || 'N/A'}</p>
+                <p><strong>Time:</strong> ${body?.time || 'N/A'}</p>
+                <p>Please review and confirm the booking.</p>
+            </div>
+        `;
 
         // Renamed 'res' variable to avoid conflict with the Express 'res' object
         const userMailResponse = await mailSender(
@@ -180,7 +190,7 @@ router.post("/bookVideoCall", async (req, res) => {
         ); // send to user
 
         const adminMailResponse = await mailSender(
-            process.env.ADMIN_EMAIL || "carpetshimalaya@gmail.com",
+            process.env.ADMIN_EMAIL || "info@sandsofkashi.com",
             "New Video Call Book",
             admintemplate
         ); // send to Admin
@@ -247,7 +257,7 @@ router.post("/contact", async (req, res) => {
 
         // Send mail to admin
         await mailSender(
-            process.env.ADMIN_EMAIL || "carpetshimalaya@gmail.com",
+            process.env.ADMIN_EMAIL || "info@sandsofkashi.com",
             `Contact Us: ${subject}`,
             htmlBody
         );
@@ -256,7 +266,7 @@ router.post("/contact", async (req, res) => {
         const userBody = `
       Hi ${name},<br/><br/>
       Thanks for reaching out! We've received your message and will get back to you shortly.<br/><br/>
-      Regards,<br/>Himalaya Carpets Team
+      Regards,<br/>Sands Of Kashi Team
     `;
         await mailSender(email, "We received your message!", userBody);
 
@@ -307,22 +317,25 @@ router.post("/custom-rug-request", async (req, res) => {
 
     try {
         // --- Send mail to Admin ---
-        const adminHtmlBody = adminCustomRugNotificationTemplate({
-            name,
-            email,
-            phone,
-            sizePreference,
-            customWidth,
-            customLength,
-            material,
-            colorPalette,
-            designStyle,
-            designDescription,
-            shape,
-        });
+        const adminHtmlBody = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd;">
+                <h2 style="color: #333;">New Custom Rug Request</h2>
+                <p><strong>Name:</strong> ${name}</p>
+                <p><strong>Email:</strong> ${email}</p>
+                <p><strong>Phone:</strong> ${phone}</p>
+                <p><strong>Size Preference:</strong> ${sizePreference}</p>
+                ${sizePreference === 'custom' ? `<p><strong>Custom Dimensions:</strong> ${customWidth} x ${customLength}</p>` : ''}
+                <p><strong>Material:</strong> ${Array.isArray(material) ? material.join(', ') : material}</p>
+                <p><strong>Color Palette:</strong> ${colorPalette}</p>
+                <p><strong>Shape:</strong> ${shape}</p>
+                <p><strong>Design Style:</strong> ${designStyle}</p>
+                <p><strong>Design Description:</strong> ${designDescription}</p>
+                <p>Please review this custom rug request and contact the customer.</p>
+            </div>
+        `;
 
         await mailSender(
-            process.env.ADMIN_EMAIL || "carpetshimalaya@gmail.com",
+            process.env.ADMIN_EMAIL || "info@sandsofkashi.com",
             `New Custom Rug Request from ${name}`,
             adminHtmlBody
         );
@@ -350,9 +363,9 @@ router.post("/custom-rug-request", async (req, res) => {
                     <p>Hi <strong>${name}</strong>,</p>
                     <p>We've successfully received your custom rug design request. Our team is excited to review your ideas and will get back to you shortly to discuss the next steps.</p>
                     <p>We appreciate your patience as we meticulously craft bespoke solutions tailored just for you.</p>
-                    <p>Regards,<br/>The Himalaya Carpets Team</p>
+                    <p>Regards,<br/>The Sands Of Kashi Team</p>
                     <div class="footer">
-                        This is an automated message from Himalaya Carpets.
+                        This is an automated message from Sands Of Kashi.
                     </div>
                 </div>
             </body>
@@ -360,7 +373,7 @@ router.post("/custom-rug-request", async (req, res) => {
         `;
         await mailSender(
             email, // User's email address
-            "Himalaya Carpets: Your Custom Rug Request Confirmation",
+            "Sands Of Kashi: Your Custom Rug Request Confirmation",
             userConfirmationBody
         );
 

@@ -10,6 +10,10 @@ const router = express.Router();
 // {domain}/api/v1/bookings/create
 router.post("/create", isAuthenticated, createBooking);
 
+const { createGuestBooking } = require("../controller/admin/booking.controller");
+// {domain}/api/v1/bookings/public/create
+router.post("/public/create", createGuestBooking);
+
 // {domain}/api/v1/bookings/my
 router.get("/my", isAuthenticated, getMyBookings);
 

@@ -3,7 +3,8 @@
 
 const fs = require("fs");
 const path = require("path");
-const s3 = require("../config/awsConfig");
+const { Upload } = require("@aws-sdk/lib-storage");
+const s3Client = require("../config/awsConfig");
 
 const imageUploader = async (images, slugFileName) => {
     const list = Array.isArray(images) ? images : [images];
@@ -14,20 +15,24 @@ const imageUploader = async (images, slugFileName) => {
         const finalName = `${slugFileName}-${Date.now()}${ext}`;
 
         // Read file from tempFilePath
-        const fileBuffer = fs.readFileSync(image.tempFilePath);
+        const fileStream = fs.createReadStream(image.tempFilePath);
 
-        const params = {
-            Bucket: process.env.AWS_BUCKET_NAME,
-            Key: finalName,
-            Body: fileBuffer,
-            ContentType: image.mimetype,
-            // ACL: "public-read", // make file public
-        };
+        const upload = new Upload({
+            client: s3Client,
+            params: {
+                Bucket: process.env.AWS_BUCKET_NAME,
+                Key: finalName,
+                Body: fileStream,
+                ContentType: image.mimetype,
+            },
+        });
 
-        const result = await s3.upload(params).promise();
-
-        // Only push URL
-        uploadedUrls.push(result.Location);
+        const result = await upload.done();
+        
+        // Location is available in result.Location (or result.Key with custom URL construction if needed)
+        // For v3, bucket URL is typically https://{bucket}.s3.{region}.amazonaws.com/{key}
+        const bucketUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${finalName}`;
+        uploadedUrls.push(bucketUrl);
     }
 
     return uploadedUrls;

@@ -4,6 +4,10 @@ const createSupport = async (req, res) => {
     try {
         const { name, email, phone, subject, message } = req.body;
 
+        if (!name || !email || !subject || !message) {
+            return res.error("Name, email, subject and message are required", 400);
+        }
+
         const support = await Support.create({
             name,
             email,
@@ -12,25 +16,18 @@ const createSupport = async (req, res) => {
             message,
         });
 
-        res.status(201).json({
-            message: "Support request submitted",
-            support,
-        });
+        return res.success("Support request submitted", support);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        return res.error(error.message, 500);
     }
 };
 
 const getAllSupport = async (req, res) => {
     try {
         const supports = await Support.find().sort({ createdAt: -1 });
-
-        res.json({
-            total: supports.length,
-            supports,
-        });
+        return res.success("Support tickets fetched successfully", { total: supports.length, supports });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        return res.error(error.message, 500);
     }
 };
 
@@ -39,12 +36,12 @@ const getSingleSupport = async (req, res) => {
         const support = await Support.findById(req.params.id);
 
         if (!support) {
-            return res.status(404).json({ message: "Ticket not found" });
+            return res.error("Ticket not found", 404);
         }
 
-        res.json(support);
+        return res.success("Support ticket fetched", support);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        return res.error(error.message, 500);
     }
 };
 
@@ -58,12 +55,11 @@ const updateSupportStatus = async (req, res) => {
             { new: true }
         );
 
-        res.json({
-            message: "Status updated",
-            support,
-        });
+        if (!support) return res.error("Ticket not found", 404);
+
+        return res.success("Status updated", support);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        return res.error(error.message, 500);
     }
 };
 
@@ -78,24 +74,23 @@ const replySupport = async (req, res) => {
             { new: true }
         );
 
-        res.json({
-            message: "Reply sent",
-            support,
-        });
+        if (!support) return res.error("Ticket not found", 404);
+
+        return res.success("Reply sent", support);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        return res.error(error.message, 500);
     }
 };
 
 const deleteSupport = async (req, res) => {
   try {
-    await Support.findByIdAndDelete(req.params.id);
+    const support = await Support.findByIdAndDelete(req.params.id);
 
-    res.json({
-      message: "Support ticket deleted",
-    });
+    if (!support) return res.error("Ticket not found", 404);
+
+    return res.success("Support ticket deleted");
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.error(error.message, 500);
   }
 };
 

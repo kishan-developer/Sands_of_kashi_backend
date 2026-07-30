@@ -1,6 +1,5 @@
 const express = require("express");
 const employeeRoutes = express.Router();
-const upload = require("../middleware/employeeUpload");
 
 const {
   createEmployee,
@@ -8,15 +7,15 @@ const {
   getEmployeeById,
   updateEmployee,
   deleteEmployee,
-} = require("../controllers/employeeController");
+} = require("../../controller/admin/employee.controller");
 
-employeeRoutes.post("/", upload.single("profileImage"), createEmployee);
+employeeRoutes.post("/", createEmployee);
 
 employeeRoutes.get("/", getEmployees);
 
 employeeRoutes.get("/:id", getEmployeeById);
 
-employeeRoutes.put("/:id", upload.single("profileImage"), updateEmployee);
+employeeRoutes.put("/:id", updateEmployee);
 
 employeeRoutes.delete("/:id", deleteEmployee);
 

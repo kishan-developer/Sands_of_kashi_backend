@@ -1,490 +1,451 @@
 const asyncHandler = require("express-async-handler");
 const User = require("../model/User.model");
-const OTP = require("../model/Otp.model");
-const bcrypt = require("bcryptjs");
-const mailSender = require("../utils/mailSender.utils");
-const generateOtp = require("../utils/otpGenerator.utils");
-const registrationSuccessTemplate = require("../email/template/registrationSuccessTemplate");
+const { globalErrorHandler, ValidationError, ConflictError } = require("../middleware/globalErrorHandler.middleware");
+const auth_service = require("../services/auth.service");
+const otp_service = require("../services/otp.service");
+const twoFactor_service = require("../services/twoFactor.service");
+const email_service = require("../services/email.service");
 const getSessionDetails = require("../utils/getSessionDetails");
-const loginAlertTemplate = require("../email/template/loginAlertTemplate");
-const getCurrentDateTime = require("../utils/getCurrentDateTime");
-const forgotPasswordTemplate = require("../email/template/fogotPasswordTemplate");
-const jwt = require("jsonwebtoken");
-const passwordChangeSuccessTemplate = require("../email/template/passwordChangeSuccessTemplate");
-const crypto = require("crypto");
 require("dotenv").config();
 
-
-// Generate Token And Referesh Tokens
-const generateTokenAndRefereshTokens = asyncHandler(async (userId) => {
-    const user = await User.findById(userId);
-    const token = user.generateToken();
-    const refreshToken = user.generateRefreshToken();
-    user.refreshToken = refreshToken;
-    await user.save({ validateBeforeSave: false });
-
-    return { token, refreshToken };
-});
-
-
-
-// Send OTP Working 
+/**
+ * Send OTP to email for registration
+ */
 exports.sendOtp = asyncHandler(async (req, res) => {
-    const { email } = req.body;
-
-    if (!email) {
-        return res.error("Email is required", 400);
-    }
-
-    const isUserAlreadyExists = await User.findOne({ email });
-    
-    if (isUserAlreadyExists) {
-        return res.error("User Already Exists", 400);
-    }
-
-    const otp = await generateOtp();
-    console.log("Generated OTP:", otp);
-
-    await OTP.deleteMany({ email });
-    await OTP.create({ email, otp });
-
-    try {
-        await mailSender(
-            email,
-            "Your OTP for Registration",
-            `
-                <h2>Verification OTP</h2>
-                <p>Your OTP is: <b>${otp}</b></p>
-                <p>It will expire in 10 minutes.</p>
-            `
-        );
-
-        return res.success("OTP sent successfully", { email });
-
-    } catch (error) {
-        console.log("Email Error:", error);
-        return res.error("Failed to send OTP email", 500);
-    }
+    const { email, purpose } = req.body;
+    const result = await otp_service.sendOtp(email, purpose || 'registration');
+    return res.success("OTP sent successfully", result);
 });
 
-
-// Controller function to handle user registration
+/**
+ * Register new user
+ */
 exports.registerUser = asyncHandler(async (req, res) => {
+    const { fullName, email, phone, password, otp } = req.body;
 
-    // Destructure fields from request body
-    const { phone, password, confirmPassword, otp } = req.body;
-
-    const email = req.body.email?.trim().toLowerCase();
-    const firstName = req.body.firstName.trim().toLowerCase();
-    const lastName = req.body.lastName.trim().toLowerCase();
-    // 400 Bad Request – Missing required fields
-
-    if (
-        !firstName ||
-        !lastName ||
-        !email ||
-        !phone ||
-        !password ||
-        !confirmPassword ||
-        !otp
-    ) {
-        return res.error("All fields are required.", 400);
+    // Validate required fields
+    if (!fullName || !email || !phone || !password || !otp) {
+        throw new ValidationError("All fields are required");
     }
 
-    // 400 Bad Request – Passwords don't match
-    if (password !== confirmPassword) {
-        return res.error("Password does not match.", 400);
+    // Validate email format
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        throw new ValidationError("Invalid email format");
     }
-    // 409 Conflict – User already exists
-    const isUserAlreadyExist = await User.findOne({ email });
 
+    // Validate phone number (should be international format with country code)
+    if (!phone || phone.length < 10) {
+        throw new ValidationError("Invalid phone number");
+    }
+
+    // Validate password strength
+    const passwordValidation = auth_service.validatePasswordStrength(password);
+    if (!passwordValidation.isValid) {
+        throw new ValidationError(passwordValidation.errors.join(", "));
+    }
+
+    // Verify OTP
+    await otp_service.verifyOtp(email, otp);
+
+    // Check if user already exists
+    const isUserAlreadyExist = await User.findOne({ email: email.trim().toLowerCase() });
     if (isUserAlreadyExist) {
-        return res.error("User already exists.", 409);
+        throw new ConflictError("User already exists");
     }
 
-    // 404 Not Found – OTP record not found (expired or never generated)
-    const otpRecord = await OTP.findOne({ email });
+    // Split fullName for email purposes (backward compatibility)
+    const nameParts = fullName.trim().split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
 
-    if (!otpRecord) {
-        return res.error(
-            "OTP record not found (expired or never generated)",
-            404
-        );
-    }
-
-    // 400 Bad Request – OTP provided does not match
-    if (otpRecord.otp !== otp) {
-        return res.error("OTP does not match.", 400);
-    }
-
-    // Prepare user data for DB
+    // Create user (password will be hashed by model pre-save hook)
     const userPayload = {
-        firstName,
-        lastName,
-        email,
-        phone,
-        password,
+        fullName: fullName.trim().toLowerCase(),
+        email: email.trim().toLowerCase(),
+        phone, // Store phone with country code as sent from frontend
+        password, // Plain password - will be hashed by model pre-save hook
     };
 
-    console.log("userpayload", userPayload);
-    // Save new user
     const newUser = await User.create(userPayload);
-    // newUser.save();
-    // Send registration success email
- 
-    // 201 Created – Resource successfully created
-    return res.success("User created successfully.", newUser);
+
+    // Send registration email
+    await email_service.sendRegistrationEmail(email, firstName, lastName);
+
+    return res.success("User created successfully", auth_service.sanitizeUser(newUser));
 });
 
 
-// User Login Handler
+/**
+ * User Login Handler
+ */
 exports.login = asyncHandler(async (req, res) => {
-    // console.log("req.body", req.body);
-
     const { password } = req.body;
-    const email = req.body?.email.trim().toLowerCase();
+    const email = req.body?.email?.trim().toLowerCase();
 
-    // Check all Required Field Are Available Or Not.
+    // Validate required fields
     if (!email || !password) {
-        return res.error("All Field Are Required.", 400);
+        throw new ValidationError("Email and password are required");
     }
 
-    // Check Is User Exit Or Not
-    const user = await User.findOne({ email });
+    // Validate credentials
+    const user = await auth_service.validateCredentials(email, password);
 
-    if (!user) {
-        return res.error("User does not exist!", 404);
+    // Check if 2FA is enabled
+    if (user.twoFactorEnabled) {
+        // Return user info for 2FA verification
+        return res.success("2FA verification required", {
+            requiresTwoFactor: true,
+            email: user.email,
+        });
     }
 
-    // Check Is User Password Are Same Or Not ?
-    // ---> Compare User Password And  Input Password By bcrypt
-
-    const isPasswordMatch = await bcrypt.compare(password, user.password);
-
-    if (!isPasswordMatch) {
-        return res.error("Password does not match", 403);
+    // Generate tokens with session details
+    let session;
+    try {
+        session = getSessionDetails(req);
+    } catch (error) {
+        console.error('Error getting session details:', error);
+        session = {
+            ip: 'Unknown',
+            location: 'Unknown',
+            device: 'Unknown',
+            browser: 'Unknown',
+            os: 'Unknown'
+        };
     }
+    
+    const { token, refreshToken } = await auth_service.generateTokens(user._id, session);
 
-    // Generate Token For User
-    const { token, refreshToken } = await generateTokenAndRefereshTokens(
-        user._id
-    );
-
-    // send login alert to user
-    const session = getSessionDetails(req);
-
-    await mailSender(
-        user.email,
-        "Alert: A New Login Was Detected on Your Account",
-        loginAlertTemplate(
+    // Send login alert email
+    try {
+        await email_service.sendLoginAlertEmail(
+            user.email,
             `${user.firstName} ${user.lastName}`,
-            session.device,
-            session.location,
-            session.ip,
-            getCurrentDateTime()
-        )
-    );
+            session
+        );
+    } catch (error) {
+        console.error('Error sending login alert email:', error);
+        // Continue with login even if email fails
+    }
 
-    const userData = user.toObject();
-    delete userData.password; // Don't expose hashed password
-    delete userData.__v;
-    delete userData.refreshToken;
-    // const options = {
-    //     httpOnly: true,
-    //     secure: false, //  for localhost
-    //     sameSite: "Lax", //  for localhost
-    // };
-
+    // Set cookies
     const isProduction = process.env.NODE_ENV === "production";
+    const cookieOptions = {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? "None" : "Lax",
+        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    };
 
-    res.cookie("refreshToken", refreshToken, {
-        httpOnly: true,
-        secure: false, // true on production, false on localhost
-        sameSite: "Lax", // "None" needed for cross-origin
-        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    });
-    res.cookie("token", token, {
-        httpOnly: true,
-        secure: false, // true on production, false on localhost
-        sameSite: "Lax", // "None" needed for cross-origin
-        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    });
+    res.cookie("refreshToken", refreshToken, cookieOptions);
+    res.cookie("token", token, cookieOptions);
 
     return res.success(`Welcome ${user.firstName}`, {
-        user: userData,
+        user: auth_service.sanitizeUser(user),
         token,
+        refreshToken,
     });
 });
 
 
-// Handler FOr Handle Change Password From Profile Of User After Login
+/**
+ * Change user password
+ */
 exports.changePassword = asyncHandler(async (req, res) => {
-    // get user old password new password confirm Password and token
-    const { oldPassword, password, confirmPassword } = req?.body;
+    const { oldPassword, password, confirmPassword } = req.body;
 
+    // Validate required fields
     if (!password || !confirmPassword || !oldPassword) {
-        return res.error("All fields are required", 404);
+        throw new ValidationError("All fields are required");
     }
 
-    // check your password with confirmPassword 
+    // Validate password match
     if (password !== confirmPassword) {
-        return res.error(
-            "Your New Password And Confirm Password Do Not Match.",
-            403
-        );
+        throw new ValidationError("New password and confirm password do not match");
     }
 
-    // get user details with user._id
-    const userDetails = await User.findById(req?.user?._id);
-
-    if (!userDetails) {
-        return res.error(
-            "User Not Found Something Went Wrong! Please Try Again.",
-            403
-        );
-    }
-    
-    // Check Is BOth Password Are Same Or NOt New - confirmPassword
-    const isPasswordMatch = await bcrypt.compare(
-        oldPassword,
-        userDetails.password
-    );
-
-    if (!isPasswordMatch) {
-        return res.error(
-            "Your old password and new password does not match.",
-            403
-        );
+    // Validate password strength
+    const passwordValidation = auth_service.validatePasswordStrength(password);
+    if (!passwordValidation.isValid) {
+        throw new ValidationError(passwordValidation.errors.join(", "));
     }
 
-    const isNewPasswordSame = await bcrypt.compare(
-        password,
-        userDetails.password
-    );
+    // Change password using service
+    const user = await auth_service.changePassword(req.user._id, oldPassword, password);
 
-    // ALso Check Your NewPassword Should Not Be Your Old Password Again
-    if (isNewPasswordSame) {
-        return res.error("Old Password New Password Are Same.", 403);
-    }
-    // If Not Match Then  Save User Details
-    userDetails.password = password;
-    await userDetails.save();
-    await mailSender(
-        userDetails?.email,
-        "Himalaya Carpets | Password Changed Successfully.",
-        passwordChangeSuccessTemplate(`${userDetails.firstName} `)
-    );
-    //Send Response
-    return res.success("Password Changed Successfully", userDetails);
+    // Send password change email
+    await email_service.sendPasswordChangeEmail(user.email, user.firstName);
+
+    return res.success("Password changed successfully", auth_service.sanitizeUser(user));
 });
 
 
-// Controller For handle Token Generation For Password Reset ->
+/**
+ * Generate password reset token
+ */
 exports.forgotPasswordToken = asyncHandler(async (req, res) => {
-
-    // get user email find them
     const { email } = req.body;
 
     if (!email) {
-        return res.error("Please Provide Email.", 404);
+        throw new ValidationError("Email is required");
     }
 
-    // if user not exit then throw error
-    const userDetails = await User.findOne({ email });
+    // Generate reset token using service
+    const { token, email: userEmail, firstName } = await auth_service.generatePasswordResetToken(email);
 
-    // if user exit then send a token to user on email
-    if (!userDetails) {
-        return res.error("User does not exist!", 404);
-    }
+    // Send password reset email
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${token}`;
+    await email_service.sendPasswordResetEmail(userEmail, resetUrl);
 
-    // set expiry time for reset token
-    const token = crypto.randomUUID();
-    userDetails.forgotPasswordToken = {
-        value: token,
-        expiresAt: new Date(Date.now() + 900000), // expires after 15 min
-    };
-    await userDetails.save();
-    // send email with reset token on email
-    const URL = `${process.env.FRONTEND_URL}reset-password/${token} `;
-    await mailSender(
-        email,
-        "Reset Password Link -  Fabs",
-        forgotPasswordTemplate(URL)
-    );
     return res.success("Reset link sent! Check your email.");
-    // send success response to admin
 });
 
 
-// Forgot Password Handler For Handle Password Change By Token
+/**
+ * Reset password with token
+ */
 exports.forgotPassword = asyncHandler(async (req, res) => {
-    // get password and confirm password and token
     const { token } = req.params;
     const { password, confirmPassword } = req.body;
-    console.log(password, confirmPassword);
+
     if (!token) {
-        return res.error("Something Went Wrong. Reset Token Is Missing", 403);
+        throw new ValidationError("Reset token is missing");
     }
-    // check for password confirm password
+
     if (!password || !confirmPassword) {
-        return res.error("All fields are required");
+        throw new ValidationError("All fields are required");
     }
-    // check for token
 
-    // check is password and confirm password are same or not ?
     if (password !== confirmPassword) {
-        return res.error("Password and confirm password does not match", 403);
-    }
-    // find user by token
-    const userDetails = await User.findOne({
-        "forgotPasswordToken.value": token,
-    });
-
-    if (!userDetails) {
-        return res.error("User not found! Please try again", 404);
-    }
-    const isPreviousPassword = await bcrypt.compare(
-        password,
-        userDetails.password
-    );
-    // before saving new password check is new password or password are not Same
-    if (isPreviousPassword) {
-        return res.error(
-            "Your Old Password And New Password Are Same. Try Another",
-            403
-        );
-    }
-    // check is token is valid or not ? I Mean Expired or not
-    if (userDetails.forgotPasswordToken.value !== token) {
-        return res.error(
-            "Token Not Matched. Please Generate New Or Try Again.",
-            401
-        );
+        throw new ValidationError("Password and confirm password do not match");
     }
 
-    if (!(userDetails.forgotPasswordToken.expiresAt > Date.now())) {
-        return res.error(
-            "Reset link Is Expired! Please Generate New Link",
-            400
-        );
+    // Validate password strength
+    const passwordValidation = auth_service.validatePasswordStrength(password);
+    if (!passwordValidation.isValid) {
+        throw new ValidationError(passwordValidation.errors.join(", "));
     }
 
-    // if token is valid new passowrd previuos passowrd are not same then save new password
-    userDetails.password = password;
-    userDetails.forgotPasswordToken.value = null;
-    userDetails.forgotPasswordToken.expiresAt = null;
-    await userDetails.save();
-    await mailSender(
-        userDetails?.email,
-        "Himalaya Carpets | Password Changed Successfully.",
-        passwordChangeSuccessTemplate(`${userDetails.firstName} `)
-    );
-    return res.success("Password Changed Successfully.");
+    // Reset password using service
+    const user = await auth_service.resetPassword(token, password);
+
+    // Send password change email
+    await email_service.sendPasswordChangeEmail(user.email, user.firstName);
+
+    return res.success("Password changed successfully");
 });
 
-// Logout User
-exports.logoutUser = async (req, res) => {
-    try {
-        const refreshToken = req.cookies?.refreshToken;
+/**
+ * Logout user
+ */
+exports.logoutUser = asyncHandler(async (req, res) => {
+    const refreshToken = req.cookies?.refreshToken;
+    const userId = req.user?._id;
 
-        if (refreshToken) {
-            const decoded = jwt.verify(
-                refreshToken,
-                process.env.JWT_REFRESH_TOKEN_SECRET
-            );
-            await User.findByIdAndUpdate(decoded._id, {
-                $unset: { refreshToken: 1 },
-            });
-        }
+    // Logout using service
+    await auth_service.logoutUser(userId, refreshToken);
 
-        res.clearCookie("token", { httpOnly: true, secure: false });
-        res.clearCookie("refreshToken", { httpOnly: true, secure: false });
+    // Clear cookies
+    const isProduction = process.env.NODE_ENV === "production";
+    const cookieOptions = {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? "None" : "Lax",
+    };
 
-        return res.success("User logged out");
-    } catch (error) {
-        console.log("Logout error:", error.message);
-        return res.success("Logged out"); // still success, even if error
-    }
-};
+    res.clearCookie("token", cookieOptions);
+    res.clearCookie("refreshToken", cookieOptions);
+
+    return res.success("User logged out successfully");
+});
 
 
-// Regenerate Token 
+/**
+ * Refresh access token with rotation
+ */
 exports.regenerateToken = asyncHandler(async (req, res) => {
     const incomingRefreshToken = req?.cookies?.refreshToken;
-    // console.log("Refresh token ->", incomingRefreshToken);
-    // console.log("Refresh token API Cookies->", req.cookies);
+
     if (!incomingRefreshToken) {
-        return res.error("Unauthorized request", 400);
+        throw new ValidationError("Refresh token is required");
     }
 
-    try {
-        const decodedToken = jwt.verify(
-            incomingRefreshToken,
-            process.env.JWT_REFRESH_TOKEN_SECRET
-        );
+    // Refresh token using service
+    const { token, refreshToken } = await auth_service.refreshAccessToken(incomingRefreshToken);
 
-        const user = await User.findById(decodedToken?._id);
+    // Set cookies
+    const isProduction = process.env.NODE_ENV === "production";
+    const cookieOptions = {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? "None" : "Lax",
+        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    };
 
-        if (!user) {
-            return res.error("Invalid refresh token", 400);
-        }
+    res.cookie("token", token, cookieOptions);
+    res.cookie("refreshToken", refreshToken, cookieOptions);
 
-        if (incomingRefreshToken !== user?.refreshToken) {
-            return res.error("Refresh token is expired or used...", 401);
-        }
+    return res.success("Access token refreshed", { token, refreshToken });
+});
 
-        const { token, refreshToken: newRefreshToken } =
-            await generateTokenAndRefereshTokens(user._id);
+/**
+ * Get active user sessions
+ */
+exports.getActiveSessions = asyncHandler(async (req, res) => {
+    const activeSessions = await auth_service.getActiveSessions(req.user._id);
+    return res.success("Active sessions retrieved", activeSessions);
+});
 
-        res.cookie("token", token, { httpOnly: true, secure: true }).cookie(
-            "refreshToken",
-            newRefreshToken,
-            { httpOnly: true, secure: true }
-        );
+/**
+ * Revoke specific session
+ */
+exports.revokeSession = asyncHandler(async (req, res) => {
+    const { sessionId } = req.params;
+    await auth_service.revokeSession(req.user._id, sessionId);
+    return res.success("Session revoked successfully");
+});
 
-        return res.success("Access token refreshed", token);
-    } catch (err) {
-        return res.error("Invalid or expired refresh token", 400);
-    }
+/**
+ * Revoke all sessions except current
+ */
+exports.revokeAllSessions = asyncHandler(async (req, res) => {
+    const currentRefreshToken = req?.cookies?.refreshToken;
+    await auth_service.revokeAllSessions(req.user._id, currentRefreshToken);
+    return res.success("All other sessions revoked successfully");
 });
 
 
-// Get User Details 
+/**
+ * Get user details
+ */
 exports.getUserDetails = asyncHandler(async (req, res) => {
     const userId = req?.user?._id || req.body.userId;
+    
     if (!userId) {
-        return res.error("Unauthorised Access", 401);
+        throw new ValidationError("User ID is required");
     }
-    const userDetails = await User.findById(userId).select(
-        "-password -refreshToken"
-    );
+
+    const userDetails = await User.findById(userId).select("-password -refreshToken");
 
     if (!userDetails) {
-        return res.error("Unauthorized access. User not found", 401);
+        throw new NotFoundError("User not found");
     }
-    return res.success("User Fetched Successfully..", userDetails);
+
+    return res.success("User fetched successfully", auth_service.sanitizeUser(userDetails));
 });
 
 
-// Reset Pass Validate Token
+/**
+ * Validate password reset token
+ */
 exports.resetPassValidateToken = asyncHandler(async (req, res) => {
     const { token } = req.params;
 
     if (!token) {
-        return res.error("Reset token is missing", 400);
+        throw new ValidationError("Reset token is missing");
     }
 
-    const user = await User.findOne({
-        "forgotPasswordToken.value": token,
-    });
-
-    if (!user) {
-        return res.error("Invalid or expired reset token", 400);
-    }
-
-    if (user.forgotPasswordToken.expiresAt < new Date()) {
-        return res.error("Reset token has expired", 400);
-    }
-
+    await auth_service.validatePasswordResetToken(token);
     return res.success("Reset token is valid");
+});
+
+/**
+ * Setup 2FA - Generate secret and QR code
+ */
+exports.setupTwoFactor = asyncHandler(async (req, res) => {
+    const result = await twoFactor_service.setupTwoFactor(req.user._id);
+    return res.success("2FA setup initiated", result);
+});
+
+/**
+ * Verify 2FA setup and enable it
+ */
+exports.verifyTwoFactorSetup = asyncHandler(async (req, res) => {
+    const { token } = req.body;
+    const result = await twoFactor_service.verifyTwoFactorSetup(req.user._id, token);
+    return res.success("2FA enabled successfully", result);
+});
+
+/**
+ * Verify 2FA during login
+ */
+exports.verifyTwoFactorLogin = asyncHandler(async (req, res) => {
+    const { token, backupCode, email } = req.body;
+
+    if (!token && !backupCode) {
+        throw new ValidationError("Verification token or backup code is required");
+    }
+
+    // Verify 2FA using service
+    const { user, method } = await twoFactor_service.verifyTwoFactorLogin(email, token, backupCode);
+
+    // Generate tokens
+    let session;
+    try {
+        session = getSessionDetails(req);
+    } catch (error) {
+        console.error('Error getting session details:', error);
+        session = {
+            ip: 'Unknown',
+            location: 'Unknown',
+            device: 'Unknown',
+            browser: 'Unknown',
+            os: 'Unknown'
+        };
+    }
+    const { accessToken, refreshToken } = await auth_service.generateTokens(user._id, session);
+
+    // Set cookies
+    const isProduction = process.env.NODE_ENV === "production";
+    const cookieOptions = {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? "None" : "Lax",
+        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    };
+
+    res.cookie("token", accessToken, cookieOptions);
+    res.cookie("refreshToken", refreshToken, cookieOptions);
+
+    return res.success(`Login successful with ${method}`, {
+        user: auth_service.sanitizeUser(user),
+        token: accessToken,
+        refreshToken,
+    });
+});
+
+/**
+ * Disable 2FA
+ */
+exports.disableTwoFactor = asyncHandler(async (req, res) => {
+    const { password } = req.body;
+    await twoFactor_service.disableTwoFactor(req.user._id, password);
+    return res.success("2FA disabled successfully");
+});
+
+/**
+ * Send email verification
+ */
+exports.sendEmailVerification = asyncHandler(async (req, res) => {
+    const { token, email } = await auth_service.generateEmailVerificationToken(req.user._id);
+    
+    // Send verification email
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${token}`;
+    await email_service.sendEmailVerificationEmail(email, verificationUrl);
+
+    return res.success("Verification email sent");
+});
+
+/**
+ * Verify email with token
+ */
+exports.verifyEmail = asyncHandler(async (req, res) => {
+    const { token } = req.params;
+
+    if (!token) {
+        throw new ValidationError("Verification token is missing");
+    }
+
+    await auth_service.verifyEmail(token);
+    return res.success("Email verified successfully");
 });

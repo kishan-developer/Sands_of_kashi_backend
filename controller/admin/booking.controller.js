@@ -6,7 +6,8 @@ const Room = require("../../model/Room.model");
 -------------------------------------------------------- */
 const createBooking = async (req, res) => {
   try {
-    const { roomId, userId, checkIn, checkOut, guests, totalAmount } = req.body;
+    const { roomId, checkIn, checkOut, guests, totalAmount } = req.body;
+    const userId = req.user._id;
 
     // create new booking
     const booking = await Booking.create({
@@ -20,8 +21,12 @@ const createBooking = async (req, res) => {
       status: "Booked",
     });
 
-    // Mark room unavailable
-    await Room.findByIdAndUpdate(roomId, { isAvailable: false });
+    // Mark room unavailable (only for DB-tracked rooms)
+    try {
+      if (roomId.match(/^[0-9a-fA-F]{24}$/)) {
+        await Room.findByIdAndUpdate(roomId, { isAvailable: false });
+      }
+    } catch (e) { /* Static room name, skip */ }
 
     // send the create response in backend api server
     return res.success("Booking Created Successfully", booking);
@@ -37,7 +42,7 @@ const createBooking = async (req, res) => {
 const getMyBookings = async (req, res) => {
   try {
     const bookings = await Booking.find({ userId: req.user._id })
-      .populate("roomId");
+      .sort({ createdAt: -1 });
 
     return res.success("Bookings fetched successfully", bookings);
   } catch (error) {
@@ -52,8 +57,8 @@ const getMyBookings = async (req, res) => {
 const getAllBookings = async (req, res) => {
   try {
     const bookings = await Booking.find()
-      .populate("roomId")
-      .populate("userId");
+      .populate("userId")
+      .sort({ createdAt: -1 });
 
     return res.success("All bookings fetched successfully", bookings);
   } catch (error) {
@@ -75,8 +80,12 @@ const checkInBooking = async (req, res) => {
       { new: true }
     );
 
-    // update room using room id and avilability if available than show other wise hide room not available 
-    await Room.findByIdAndUpdate(booking.roomId, { isAvailable: false });
+    // update room availability if it's a DB-tracked room
+    try {
+      if (booking.roomId?.match?.(/^[0-9a-fA-F]{24}$/)) {
+        await Room.findByIdAndUpdate(booking.roomId, { isAvailable: false });
+      }
+    } catch (e) { /* Static room name, skip */ }
 
     return res.success("Guest Checked-In Successfully", booking);
   } catch (error) {
@@ -99,7 +108,11 @@ const checkOutBooking = async (req, res) => {
     );
 
     // Room becomes available again
-    await Room.findByIdAndUpdate(booking.roomId, { isAvailable: true });
+    try {
+      if (booking.roomId?.match?.(/^[0-9a-fA-F]{24}$/)) {
+        await Room.findByIdAndUpdate(booking.roomId, { isAvailable: true });
+      }
+    } catch (e) { /* Static room name, skip */ }
 
     return res.success("Guest Checked-Out Successfully", booking);
   } catch (error) {
@@ -122,7 +135,11 @@ const cancelBooking = async (req, res) => {
     );
 
     // Room becomes available again
-    await Room.findByIdAndUpdate(booking.roomId, { isAvailable: true });
+    try {
+      if (booking.roomId?.match?.(/^[0-9a-fA-F]{24}$/)) {
+        await Room.findByIdAndUpdate(booking.roomId, { isAvailable: true });
+      }
+    } catch (e) { /* Static room name, skip */ }
 
     return res.success("Booking Cancelled Successfully", booking);
   } catch (error) {
@@ -162,7 +179,11 @@ const deleteBooking = async (req, res) => {
     const booking = await Booking.findById(bookingId);
 
     // Make room available again
-    await Room.findByIdAndUpdate(booking.roomId, { isAvailable: true });
+    try {
+      if (booking.roomId?.match?.(/^[0-9a-fA-F]{24}$/)) {
+        await Room.findByIdAndUpdate(booking.roomId, { isAvailable: true });
+      }
+    } catch (e) { /* Static room name, skip */ }
 
     await Booking.findByIdAndDelete(bookingId);
 
@@ -172,8 +193,44 @@ const deleteBooking = async (req, res) => {
   }
 };
 
+const createGuestBooking = async (req, res) => {
+  try {
+    const { roomId, roomType, name, email, phone, checkIn, checkOut, guests, totalAmount, message } = req.body;
+
+    // Determine the actual roomId (handling if the frontend sends a title in 'roomType' or 'roomId')
+    let actualRoomId = roomId;
+    const identifier = roomId || roomType;
+
+    if (identifier && !identifier.match(/^[0-9a-fA-F]{24}$/)) {
+        // It's a title, try to find the room
+        const foundRoom = await Room.findOne({ title: identifier });
+        if (foundRoom) {
+            actualRoomId = foundRoom._id;
+        }
+    }
+
+    const booking = await Booking.create({
+      roomId: actualRoomId || "Manual / " + identifier,
+      guestName: name,
+      guestEmail: email,
+      guestPhone: phone,
+      checkIn,
+      checkOut,
+      guests: guests || 1,
+      totalAmount: totalAmount || 0,
+      paymentStatus: "pending",
+      status: "Booked",
+    });
+
+    return res.success("Booking Request Saved to Database", booking);
+  } catch (error) {
+    return res.error(error.message, 500);
+  }
+};
+
 module.exports= {
   createBooking,
+  createGuestBooking,
   getMyBookings,
   getAllBookings,
   checkInBooking,

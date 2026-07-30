@@ -34,7 +34,7 @@ function contactEmailTemplate({ name, email, phone, subject, message }) {
           <div class="section-title">Message:</div>
           <div>${message}</div>
         </div>
-        <div class="footer">This is an automated message from Himalaya Carpets website.</div>
+        <div class="footer">This is an automated message from Sands Of Kashi website.</div>
       </div>
     </body></html>
   `;

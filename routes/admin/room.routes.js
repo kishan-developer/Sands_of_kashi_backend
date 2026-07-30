@@ -17,14 +17,16 @@ const roomrouter = express.Router();
 
 /* Public */
 roomrouter.get("/", getAllRooms);
+
+/* Manager + Admin — must be before /:id to avoid route collision */
+roomrouter.put("/availability/:id",  updateAvailability);
+
+/* by ID */
 roomrouter.get("/:id", getRoomById);
 
 /* Admin */
 roomrouter.post("/",  createRoom);
 roomrouter.put("/:id",  updateRoom);
 roomrouter.delete("/:id",  deleteRoom);
-
-/* Manager + Admin */
-roomrouter.put("/availability/:id",  updateAvailability);
 
 module.exports = roomrouter;

@@ -6,7 +6,7 @@ const {
   getMyReviews,
   getAllReviews,
   deleteReview,
-} = require("../controllers/review.controller");
+} = require("../controllers/admin/review.controller");
 
 const {
     isAuthenticated,

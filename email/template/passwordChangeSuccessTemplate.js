@@ -5,7 +5,7 @@ function passwordChangeSuccessTemplate(userName = "User") {
  <head>
    <meta charset="UTF-8" />
    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-   <title>Password Changed - Himalaya Carpets</title>
+   <title>Password Changed - Sands Of Kashi</title>
    <style>
      @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Poppins&display=swap');
 
@@ -81,7 +81,7 @@ function passwordChangeSuccessTemplate(userName = "User") {
      <div class="container">
        <!-- Header -->
        <div class="header">
-         <h1>Himalaya Carpets</h1>
+         <h1>Sands Of Kashi</h1>
        </div>
 
        <!-- Content -->
@@ -93,8 +93,8 @@ function passwordChangeSuccessTemplate(userName = "User") {
 
        <!-- Footer -->
        <div class="footer">
-         <p>Need help? <a href="mailto:carpetshimalaya@gmail.com">Contact Support</a></p>
-         <p>© ${new Date().getFullYear()} Himalaya Carpets. All rights reserved.</p>
+         <p>Need help? <a href="mailto:info@sandsofkashi.com">Contact Support</a></p>
+         <p>© ${new Date().getFullYear()} Sands Of Kashi. All rights reserved.</p>
        </div>
      </div>
    </div>

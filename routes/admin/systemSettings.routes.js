@@ -3,7 +3,7 @@ const {
   getSettings,
   updateSettings,
   resetSettings,
-} = require("../controllers/systemSettings.controller");
+} = require("../controllers/admin/systemSettings.controller");
 
 const systemsettingsrouter = express.Router();
 

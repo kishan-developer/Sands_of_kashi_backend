@@ -2,7 +2,7 @@ const express = require("express");
 const {
     getHotelReviews,
     getRoomReviews,
-} = require("../controllers/review.controller");
+} = require("../controllers/admin/review.controller");
 
 const reviewrouter = express.Router();
 
