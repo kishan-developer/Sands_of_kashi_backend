@@ -7,36 +7,42 @@ dotenv.config();
 const rooms = [
   {
     title: "Standard Room",
-    description: "A cozy standard room with essential amenities.",
+    description: "Our elegantly appointed rooms and suites are designed to offer the utmost in comfort and style. Each room features modern amenities, plush furnishings, and thoughtful touches to ensure a relaxing stay. Whether you are here for business or leisure, our Standard Room provides the perfect sanctuary.",
     maxGuests: 3,
     price: 3500,
-    images: ["/DSC_0262.JPG"],
-    amenities: ["1 King Bed", "1 Bathroom", "130 sq.ft"],
+    size: "130 sq.ft (12 sq.mt)",
+    images: ["/hotel/DSC_0253.JPG", "/hotel/DSC_0254.JPG", "/hotel/DSC_0272.JPG"],
+    amenities: ["Free Wifi", "Shower", "Airport transport", "Balcony", "Refrigerator", "24/7 Support", "Work Desk", "Fitness Center", "Swimming Pool"],
+    features: ["Children and extra beds", "Climate Control", "Art and Decor", "Coffee/Tea Maker", "High-End Bedding", "Smart Technology"],
     roomType: "Deluxe",
   },
   {
     title: "Executive Room",
-    description: "Spacious executive room for a comfortable stay.",
+    description: "Our elegantly appointed rooms and suites are designed to offer the utmost in comfort and style. Each room features modern amenities, plush furnishings, and thoughtful touches to ensure a relaxing stay. Whether you are here for business or leisure, our Executive Room provides the perfect sanctuary.",
     maxGuests: 3,
     price: 4500,
-    images: ["/DSC_0282.JPG"],
-    amenities: ["1 King Bed", "1 Bathroom", "200 sq.ft"],
+    size: "200 sq.ft (19 sq.mt)",
+    images: ["/hotel/DSC_0273.JPG", "/hotel/DSC_0283.JPG", "/hotel/DSC_0279.JPG"],
+    amenities: ["Free Wifi", "Shower", "Airport transport", "Balcony", "Refrigerator", "24/7 Support", "Work Desk", "Fitness Center", "Swimming Pool"],
+    features: ["1 King Bed", "Max 3 Guests"],
     roomType: "Premium Balcony",
   },
   {
     title: "Royal Suite Room",
-    description: "Luxury at its finest with our Royal Suite.",
+    description: "Experience true comfort in our Royal Suite Room, designed for guests who want a special and relaxing stay. This spacious suite combines a clean modern look with elegant details. It includes comfortable furniture, beautiful interiors, and premium amenities to make your stay enjoyable.",
     maxGuests: 3,
     price: 5500,
-    images: ["/DSC_0222.JPG"],
-    amenities: ["1 King Bed", "1 Bathroom", "282 sq.ft"],
+    size: "282 sq.ft (26 sq.mt)",
+    images: ["/hotel/DSC_0246.JPG", "/hotel/DSC_0248.JPG", "/hotel/DSC_0221.JPG"],
+    amenities: ["Free Wifi", "Shower", "Airport transport", "Balcony", "Refrigerator", "24/7 Support", "Work Desk", "Fitness Center", "Swimming Pool"],
+    features: ["Children and extra beds", "Climate Control", "Art and Decor", "Coffee/Tea Maker", "High-End Bedding", "Smart Technology"],
     roomType: "Family Suite",
   }
 ];
 
 async function seed() {
   try {
-    await mongoose.connect(process.env.MONGODB_URL);
+    await mongoose.connect(process.env.MONGODB_URI);
     console.log("MongoDB Connected for seeding...");
     
     await Room.deleteMany();

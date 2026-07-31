@@ -4,8 +4,13 @@ const { isAuthenticated, isAdmin, isUser } = require("../middleware/auth.middlew
 
 const router = express.Router();
 
+// Public routes (no authentication required)
+router.post("/reservation", require("../controller/restaurant.controller").createPublicReservation);
+router.post("/inquiry", require("../controller/restaurant.controller").createPublicInquiry);
+router.post("/order-food", require("../controller/restaurant.controller").createPublicFoodOrder);
+
 // User routes (needs to be authenticated)
-router.post("/order-food", isAuthenticated, isUser, createFoodOrder);
+router.post("/order-food-auth", isAuthenticated, isUser, createFoodOrder);
 router.post("/book-table", isAuthenticated, isUser, bookTable);
 router.get("/user-history", isAuthenticated, isUser, getUserRestaurantHistory);
 

@@ -120,7 +120,7 @@ exports.login = asyncHandler(async (req, res) => {
     try {
         await email_service.sendLoginAlertEmail(
             user.email,
-            `${user.firstName} ${user.lastName}`,
+            user.fullName || `${user.firstName || ''} ${user.lastName || ''}`,
             session
         );
     } catch (error) {

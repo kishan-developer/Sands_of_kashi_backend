@@ -1,5 +1,8 @@
 const Booking = require("../../model/Booking.model");
 const Room = require("../../model/Room.model");
+const mailSender = require("../../utils/mailSender.utils");
+const bookingConfirmationTemplate = require("../../email/template/bookingConfirmationTemplate");
+const bookingAdminNotificationTemplate = require("../../email/template/bookingAdminNotificationTemplate");
 
 /* -------------------------------------------------------
     USER — CREATE BOOKING
@@ -221,6 +224,46 @@ const createGuestBooking = async (req, res) => {
       paymentStatus: "pending",
       status: "Booked",
     });
+
+    // Send confirmation email to user
+    try {
+      const userEmailBody = bookingConfirmationTemplate({
+        name,
+        email,
+        phone,
+        roomType: identifier,
+        checkIn,
+        checkOut,
+        message
+      });
+      await mailSender(email, "Booking Confirmation - Sands of Kashi", userEmailBody);
+      console.log("✅ Booking confirmation email sent to:", email);
+    } catch (emailError) {
+      console.log("⚠️ Failed to send user email:", emailError.message);
+      // Don't fail the booking if email fails
+    }
+
+    // Send notification email to admin
+    try {
+      const adminEmailBody = bookingAdminNotificationTemplate({
+        name,
+        email,
+        phone,
+        roomType: identifier,
+        checkIn,
+        checkOut,
+        message
+      });
+      await mailSender(
+        process.env.ADMIN_EMAIL || "info@sandsofkashi.in",
+        "🏨 New Booking Request - Sands of Kashi",
+        adminEmailBody
+      );
+      console.log("✅ Booking notification email sent to admin");
+    } catch (emailError) {
+      console.log("⚠️ Failed to send admin email:", emailError.message);
+      // Don't fail the booking if email fails
+    }
 
     return res.success("Booking Request Saved to Database", booking);
   } catch (error) {

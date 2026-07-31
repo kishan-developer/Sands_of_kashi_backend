@@ -27,13 +27,24 @@ async function resetPassword(email, newPassword) {
     console.log(`User found: ${user.email}`);
     console.log(`Current password hash exists: ${!!user.password}`);
 
+    // Handle migration from firstName/lastName to fullName
+    if (!user.fullName) {
+      if (user.firstName || user.lastName) {
+        user.fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+        console.log(`Migrated fullName from firstName/lastName: ${user.fullName}`);
+      } else {
+        user.fullName = 'User'; // Default fallback
+        console.log(`Set default fullName: ${user.fullName}`);
+      }
+    }
+
     // Hash the new password
     const saltRounds = 12;
     const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
-    
+
     // Update user password
     user.password = newPassword; // Will be hashed by pre-save hook
-    await user.save();
+    await user.save({ validateBeforeSave: false });
 
     console.log('Password reset successfully!');
     console.log(`Email: ${user.email}`);

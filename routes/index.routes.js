@@ -12,6 +12,7 @@ const restaurantRoutes = require("./restaurant.routes");
 // models
 const Room = require("../model/Room.model");
 const Newsletter = require("../model/Newsletter.model");
+const Contact = require("../model/Contact.model");
 
 // utils
 const imageUploader = require("../utils/imageUploader.utils");
@@ -247,6 +248,16 @@ router.post("/contact", async (req, res) => {
     }
 
     try {
+        // Store contact form data in database
+        const contact = await Contact.create({
+            name,
+            email,
+            phone,
+            subject,
+            message,
+            status: "pending",
+        });
+
         const htmlBody = contactEmailTemplate({
             name,
             email,
@@ -257,12 +268,12 @@ router.post("/contact", async (req, res) => {
 
         // Send mail to admin
         await mailSender(
-            process.env.ADMIN_EMAIL || "info@sandsofkashi.com",
+            process.env.ADMIN_EMAIL || "info@sandsofkashi.in",
             `Contact Us: ${subject}`,
             htmlBody
         );
 
-        //  send a confirmation to user
+        // Send a confirmation to user
         const userBody = `
       Hi ${name},<br/><br/>
       Thanks for reaching out! We've received your message and will get back to you shortly.<br/><br/>
@@ -273,6 +284,7 @@ router.post("/contact", async (req, res) => {
         return res.json({
             success: true,
             message: "Message sent successfully.",
+            data: contact,
         });
     } catch (err) {
         console.error("Contact POST error:", err);

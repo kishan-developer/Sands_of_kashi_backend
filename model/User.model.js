@@ -118,10 +118,23 @@ const userSchema = new mongoose.Schema(
         role: {
             type: String,
             enum: {
-                values: ["user", "admin", "super_admin", "manager", "support","reception", "employee", "customer"],
+                values: [
+                    "super_admin",
+                    "hotel_admin", 
+                    "manager",
+                    "receptionist",
+                    "reservation_staff",
+                    "housekeeping",
+                    "restaurant_manager",
+                    "chef",
+                    "waiter",
+                    "accounts",
+                    "support",
+                    "guest"
+                ],
                 message: "{VALUE} is not a valid role",
             },
-            default: "admin",
+            default: "guest",
         },
          // Legacy field - deprecated, use role instead
         isAdmin: {
