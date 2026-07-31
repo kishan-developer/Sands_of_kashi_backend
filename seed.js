@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 const Room = require("./model/Room.model");
 const dotenv = require("dotenv");
-
 dotenv.config();
 
 const rooms = [
@@ -11,8 +10,12 @@ const rooms = [
     maxGuests: 3,
     price: 3500,
     size: "130 sq.ft (12 sq.mt)",
-    images: ["/hotel/DSC_0253.JPG", "/hotel/DSC_0254.JPG", "/hotel/DSC_0272.JPG"],
-    amenities: ["Free Wifi", "Shower", "Airport transport", "Balcony", "Refrigerator", "24/7 Support", "Work Desk", "Fitness Center", "Swimming Pool"],
+    images: [
+      "https://res.cloudinary.com/drmpv5vne/image/upload/v1785485224/DSC_0253_c9jkuq.jpg", 
+      "https://res.cloudinary.com/drmpv5vne/image/upload/v1785485217/DSC_0254_nvdmsq.jpg", 
+      "https://res.cloudinary.com/drmpv5vne/image/upload/v1785485215/DSC_0272_v7m6xq.jpg"
+    ],
+   amenities: ["Free Wifi", "Free Parking", "Airport transport", "Breakfast Free","24/7 Support", "Work Desk", "Air conditioning"],
     features: ["Children and extra beds", "Climate Control", "Art and Decor", "Coffee/Tea Maker", "High-End Bedding", "Smart Technology"],
     roomType: "Deluxe",
   },
@@ -22,8 +25,11 @@ const rooms = [
     maxGuests: 3,
     price: 4500,
     size: "200 sq.ft (19 sq.mt)",
-    images: ["/hotel/DSC_0273.JPG", "/hotel/DSC_0283.JPG", "/hotel/DSC_0279.JPG"],
-    amenities: ["Free Wifi", "Shower", "Airport transport", "Balcony", "Refrigerator", "24/7 Support", "Work Desk", "Fitness Center", "Swimming Pool"],
+    images: [
+      "https://res.cloudinary.com/drmpv5vne/image/upload/v1785485505/DSC_0273_rntxb7.jpg", 
+      "https://res.cloudinary.com/drmpv5vne/image/upload/v1785485499/DSC_0279_iqh4d2.jpg", 
+    ],
+    amenities: ["Free Wifi", "Free Parking", "Airport transport", "Breakfast Free","24/7 Support", "Work Desk", "Air conditioning"],
     features: ["1 King Bed", "Max 3 Guests"],
     roomType: "Premium Balcony",
   },
@@ -33,8 +39,10 @@ const rooms = [
     maxGuests: 3,
     price: 5500,
     size: "282 sq.ft (26 sq.mt)",
-    images: ["/hotel/DSC_0246.JPG", "/hotel/DSC_0248.JPG", "/hotel/DSC_0221.JPG"],
-    amenities: ["Free Wifi", "Shower", "Airport transport", "Balcony", "Refrigerator", "24/7 Support", "Work Desk", "Fitness Center", "Swimming Pool"],
+    images: [
+      "https://res.cloudinary.com/drmpv5vne/image/upload/v1785485636/DSC_0221_nyzxox.jpg",
+    ],
+    amenities: ["Free Wifi", "Free Parking", "Airport transport", "Breakfast Free","24/7 Support", "Work Desk", "Air conditioning"],
     features: ["Children and extra beds", "Climate Control", "Art and Decor", "Coffee/Tea Maker", "High-End Bedding", "Smart Technology"],
     roomType: "Family Suite",
   }
