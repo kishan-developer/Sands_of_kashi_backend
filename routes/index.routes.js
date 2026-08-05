@@ -34,45 +34,50 @@ router.use("/restaurant", restaurantRoutes);
 
 const rooms = [
   {
-    id: 1,
-    title: "Deluxe Garden View Room",
-    image: "/room1.jpg",
-    bed: "1 King Bed",
-    bathroom: "1 Modern Bathroom",
-    size: "150 sq.ft (14 sq.mt)",
-    capacity: "Max 2 Guests",
-    price: "₹4200.00",
+    _id: "room_1",
+    title: "Standard Room",
+    description: "Our elegantly appointed rooms and suites are designed to offer the utmost in comfort and style. Each room features modern amenities, plush furnishings, and thoughtful touches to ensure a relaxing stay. Whether you are here for business or leisure, our Standard Room provides the perfect sanctuary.",
+    maxGuests: 3,
+    price: 3500,
+    size: "130 sq.ft (12 sq.mt)",
+    images: [
+      "https://res.cloudinary.com/drmpv5vne/image/upload/v1785485224/DSC_0253_c9jkuq.jpg",
+      "https://res.cloudinary.com/drmpv5vne/image/upload/v1785485217/DSC_0254_nvdmsq.jpg",
+      "https://res.cloudinary.com/drmpv5vne/image/upload/v1785485215/DSC_0272_v7m6xq.jpg"
+    ],
+    amenities: ["Free Wifi", "Free Parking", "Airport transport", "Breakfast Free", "24/7 Support", "Work Desk", "Air conditioning"],
+    features: ["Children and extra beds", "Climate Control", "Art and Decor", "Coffee/Tea Maker", "High-End Bedding", "Smart Technology"],
+    roomType: "Deluxe",
   },
   {
-    id: 2,
-    title: "Executive Premium Room",
-    image: "/room2.jpg",
-    bed: "1 Queen Bed",
-    bathroom: "Luxury Bathroom",
-    size: "210 sq.ft (19 sq.mt)",
-    capacity: "Max 3 Guests",
-    price: "₹5200.00",
+    _id: "room_2",
+    title: "Executive Room",
+    description: "Our elegantly appointed rooms and suites are designed to offer the utmost in comfort and style. Each room features modern amenities, plush furnishings, and thoughtful touches to ensure a relaxing stay. Whether you are here for business or leisure, our Executive Room provides the perfect sanctuary.",
+    maxGuests: 3,
+    price: 4500,
+    size: "200 sq.ft (19 sq.mt)",
+    images: [
+      "https://res.cloudinary.com/drmpv5vne/image/upload/v1785485505/DSC_0273_rntxb7.jpg",
+      "https://res.cloudinary.com/drmpv5vne/image/upload/v1785485499/DSC_0279_iqh4d2.jpg"
+    ],
+    amenities: ["Free Wifi", "Free Parking", "Airport transport", "Breakfast Free", "24/7 Support", "Work Desk", "Air conditioning"],
+    features: ["1 King Bed", "Max 3 Guests"],
+    roomType: "Premium Balcony",
   },
   {
-    id: 3,
-    title: "Family Suite Room",
-    image: "/room3.jpg",
-    bed: "2 Queen Beds",
-    bathroom: "2 Bathrooms",
-    size: "320 sq.ft (29 sq.mt)",
-    capacity: "Max 5 Guests",
-    price: "₹6800.00",
-  },
-  {
-    id: 4,
-    title: "Royal Heritage Suite",
-    image: "/room4.jpg",
-    bed: "1 King Bed + Sofa",
-    bathroom: "Luxury Bath Tub",
-    size: "400 sq.ft (37 sq.mt)",
-    capacity: "Max 4 Guests",
-    price: "₹8500.00",
-  },
+    _id: "room_3",
+    title: "Royal Suite Room",
+    description: "Experience true comfort in our Royal Suite Room, designed for guests who want a special and relaxing stay. This spacious suite combines a clean modern look with elegant details. It includes comfortable furniture, beautiful interiors, and premium amenities to make your stay enjoyable.",
+    maxGuests: 3,
+    price: 5500,
+    size: "282 sq.ft (26 sq.mt)",
+    images: [
+      "https://res.cloudinary.com/drmpv5vne/image/upload/v1785485636/DSC_0221_nyzxox.jpg"
+    ],
+    amenities: ["Free Wifi", "Free Parking", "Airport transport", "Breakfast Free", "24/7 Support", "Work Desk", "Air conditioning"],
+    features: ["Children and extra beds", "Climate Control", "Art and Decor", "Coffee/Tea Maker", "High-End Bedding", "Smart Technology"],
+    roomType: "Family Suite",
+  }
 ];
 
 // public room routes 
@@ -80,15 +85,32 @@ const rooms = [
 /* -------------------------------------------------------
    PUBLIC — GET ALL ROOM
 -------------------------------------------------------- */
-router.get("/rooms", async (req, res)=> {
-    try {
-        const roomsData = await Room.find();
-    
-        return res.success("Rooms fetched successfully", roomsData);
-      } catch (error) {
-        return res.error(error.message, 500);
-      }
-} )
+router.get("/rooms", async (req, res) => {
+  try {
+    let roomsData = await Room.find().lean();
+
+    if (!roomsData || roomsData.length === 0) {
+      roomsData = rooms;
+    }
+
+    return res.success("Rooms fetched successfully", roomsData);
+  } catch (error) {
+    return res.error(error.message, 500);
+  }
+});
+
+/* -------------------------------------------------------
+   PUBLIC — SEED DEFAULT ROOMS
+-------------------------------------------------------- */
+router.post("/rooms/seed", async (req, res) => {
+  try {
+    await Room.deleteMany({});
+    const seeded = await Room.insertMany(rooms);
+    return res.success("Rooms seeded successfully", seeded);
+  } catch (error) {
+    return res.error(error.message, 500);
+  }
+});
 
 /* -------------------------------------------------------
    PUBLIC — GET SINGLE ROOM
