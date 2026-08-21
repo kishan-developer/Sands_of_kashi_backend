@@ -20,6 +20,7 @@ const mailSender = require("../utils/mailSender.utils");
 
 // email templates
 const contactEmailTemplate = require("../email/template/contactEmailTemplate");
+const { handleChatRequest } = require("../controller/chat.controller");
 
 const router = express.Router();
 
@@ -31,6 +32,7 @@ router.use("/guest", guestRoutes);
 router.use("/payment", paymentRoutes);
 router.use("/bookings", bookingRoutes);
 router.use("/restaurant", restaurantRoutes);
+router.post("/chat", handleChatRequest);
 
 const rooms = [
   {
@@ -79,9 +81,7 @@ const rooms = [
     roomType: "Family Suite",
   }
 ];
-
 // public room routes 
-
 /* -------------------------------------------------------
    PUBLIC — GET ALL ROOM
 -------------------------------------------------------- */

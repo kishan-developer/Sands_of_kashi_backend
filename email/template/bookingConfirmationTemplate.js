@@ -1,59 +1,30 @@
-const { getPremiumEmailTemplate } = require('./premiumEmailTemplate');
-
 function bookingConfirmationTemplate({ name, email, phone, roomType, checkIn, checkOut, message }) {
-  const checkInDate = new Date(checkIn).toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
-  });
-  const checkOutDate = new Date(checkOut).toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
-  });
+  const checkInStr = checkIn ? new Date(checkIn).toLocaleDateString() : "N/A";
+  const checkOutStr = checkOut ? new Date(checkOut).toLocaleDateString() : "N/A";
 
-  const content = `
-    <h2>🏨 Booking Confirmation</h2>
-    <p>Dear <strong>${name}</strong>,</p>
-    <p>Thank you for choosing <strong>Sands of Kashi</strong>! We have received your booking request and are delighted to welcome you to our hotel in the spiritual city of Varanasi.</p>
-    
-    <div class="info-box">
-      <h3>📋 Booking Details</h3>
-      <table>
-        <tr><td>Room Type:</td><td>${roomType}</td></tr>
-        <tr><td>Check-in:</td><td>${checkInDate}</td></tr>
-        <tr><td>Check-out:</td><td>${checkOutDate}</td></tr>
-        <tr><td>Email:</td><td>${email}</td></tr>
-        <tr><td>Phone:</td><td>${phone}</td></tr>
-      </table>
+  return `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 10px; overflow: hidden;">
+      <div style="background-color: #1a1a1a; color: #c5a37f; padding: 30px; text-align: center;">
+        <h1 style="margin: 0; font-size: 24px; letter-spacing: 2px;">THANK YOU</h1>
+        <p style="margin: 5px 0 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Your Booking is under review</p>
+      </div>
+      <div style="padding: 40px; background-color: #ffffff;">
+        <p style="color: #666; font-size: 16px;">Dear <strong>${name || 'Guest'}</strong>,</p>
+        <p style="color: #666; line-height: 1.6;">Thank you for choosing <strong>Sands of Kashi</strong>. We have received your booking request for a <strong>${roomType || 'Room'}</strong> and our team will get in touch with you shortly to confirm the details.</p>
+        
+        <div style="margin: 20px 0; padding: 20px; border: 1px dashed #c5a37f; border-radius: 8px;">
+          <p style="margin: 0; font-size: 14px;"><strong>Your Dates:</strong></p>
+          <p style="margin: 5px 0; font-size: 18px; color: #1a1a1a;">${checkInStr} — ${checkOutStr}</p>
+        </div>
+        
+        <p style="color: #666; font-size: 14px;">If you have any urgent questions, please feel free to call us at <a href="tel:+917522801564" style="color: #c5a37f; text-decoration: none;">+91-7522801564</a>.</p>
+      </div>
+      <div style="background-color: #f8f7f5; padding: 20px; text-align: center; color: #888; font-size: 12px;">
+        <p style="margin: 0;">Sands Of Kashi By Coral Group, Varanasi</p>
+        <p style="margin: 5px 0;">Looking forward to welcoming you!</p>
+      </div>
     </div>
-    
-    ${message ? `
-    <div class="info-box">
-      <h3>📝 Special Request</h3>
-      <p><em>"${message}"</em></p>
-    </div>
-    ` : ''}
-    
-    <p><strong>Important Information:</strong></p>
-    <ul>
-      <li>Check-in time: 12:00 PM | Check-out time: 11:00 AM</li>
-      <li>Please carry a valid ID proof at check-in</li>
-      <li>Early check-in is subject to availability</li>
-      <li>For any changes, please contact us 24 hours before arrival</li>
-    </ul>
-    
-    <p>For any queries or modifications, please contact us:</p>
-    <p>📞 <a href="tel:+917522801563">+91-7522801563</a></p>
-    <p>✉️ <a href="mailto:info@sandsofkashi.in">info@sandsofkashi.in</a></p>
-    
-    <p>We look forward to providing you with a memorable stay!</p>
-    <p><em>Warm regards,<br>The Sands of Kashi Team</em></p>
   `;
-
-  return getPremiumEmailTemplate(content, "Booking Confirmation");
 }
 
 module.exports = bookingConfirmationTemplate;

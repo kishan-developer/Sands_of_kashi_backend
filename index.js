@@ -23,7 +23,12 @@ const app = express();
 
 /* -------------------- CORS FIX (Express 5 Compatible) -------------------- */
 const allowedOrigins = [
-  "https://www.sandsofkashi.com"
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://localhost:5173",
+  "http://127.0.0.1:3000",
+  "https://sandsofkashi.com",
+  "https://www.sandsofkashi.com",
 ];
 
 
